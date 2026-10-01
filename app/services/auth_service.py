@@ -78,12 +78,59 @@ class AuthService:
         return result, None
 
     @staticmethod
-    def register_client(data: dict) -> tuple[None, str]:
-        # Client creation and its cross-database saga belong to Client Service.
-        return None, (
-            "Client Service integration is required to register a client organization. "
-            "No Auth user was created."
+    def register_client(data: dict) -> tuple[dict | None, str | None]:
+        email = normalize_email(data.get("email"))
+        valid, message = validate_email_format(email)
+        if not valid:
+            return None, message
+        if UserRepository.get_by_email(email):
+            return None, "A user with this email already exists."
+
+        phone = data.get("phone")
+        if phone and UserRepository.get_by_phone(phone):
+            return None, "A user with this phone number already exists."
+
+        owner_name = (data.get("owner_name") or data.get("name") or data.get("company_name") or "").strip()
+        if not owner_name:
+            return None, "Owner name is required."
+
+        user = User(
+            name=owner_name,
+            email=email,
+            phone=phone.strip() if phone else None,
+            role=User.ROLE_CLIENT,
+            client_id=None,
+            client_status=User.CLIENT_STATUS_PENDING,
+            is_active=True,
+            email_verified=False,
         )
+        user.set_password(data["password"])
+        otp = f"{secrets.randbelow(1_000_000):06d}"
+        user.set_otp(otp)
+        try:
+            db.session.add(user)
+            db.session.flush()
+            db.session.add(
+                EmailVerificationHistory(
+                    user_id=user.id,
+                    status=EmailVerificationHistory.STATUS_SENT,
+                    ip_address=data.get("ip_address"),
+                    user_agent=data.get("user_agent"),
+                )
+            )
+            db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+            return None, "A user with this email or phone number already exists."
+        except Exception:
+            db.session.rollback()
+            logger.exception("Client registration failed.")
+            return None, "Registration failed. Please try again."
+
+        AuthService._send_email(GraphEmailService.send_otp_email, user, otp)
+        result = user.to_dict()
+        result["needs_email_verification"] = True
+        return result, None
 
     @staticmethod
     def authenticate_user(data: dict) -> tuple[dict | None, str | None, int]:

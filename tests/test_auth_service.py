@@ -97,20 +97,28 @@ def test_inactive_user_cannot_login(client, app, users):
     assert response.status_code == 403
 
 
-def test_register_client_does_not_create_orphan_auth_user(client, app):
-    response = client.post(
-        "/api/auth/register-client",
-        json={
-            "company_name": "Example Client",
-            "owner_name": "Owner Example",
-            "email": "owner@example.test",
-            "phone": None,
-            "password": "SecurePass123",
-        },
-    )
-    assert response.status_code == 503
+def test_register_client_creates_auth_user_and_sends_verification(client, app):
+    with patch.object(GraphEmailService, "send_otp_email", return_value=(True, None)) as send_otp:
+        response = client.post(
+            "/api/auth/register-client",
+            json={
+                "company_name": "Example Client",
+                "owner_name": "Owner Example",
+                "email": "owner@example.test",
+                "phone": None,
+                "password": "SecurePass123",
+            },
+        )
+    assert response.status_code == 201
+    assert response.json["data"]["needs_email_verification"] is True
+    assert response.json["data"]["role"] == "client"
+    assert send_otp.call_count == 1
     with app.app_context():
-        assert User.query.filter_by(email="owner@example.test").first() is None
+        user = User.query.filter_by(email="owner@example.test").one()
+        assert user.name == "Owner Example"
+        assert user.role == User.ROLE_CLIENT
+        assert user.client_id is None
+        assert user.check_password("SecurePass123")
 
 
 def test_me_returns_identity_without_fabricated_client_data(client, app, users):

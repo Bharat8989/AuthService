@@ -105,9 +105,11 @@ def register_client():
 	data, error = _load_data(register_client_schema)
 	if error:
 		return error
+	data["ip_address"] = request.remote_addr
+	data["user_agent"] = request.headers.get("User-Agent")
 	result, message = AuthService.register_client(data)
 	if message:
-		return error_response(message, "CLIENT_SERVICE_REQUIRED", 503)
+		return error_response(message, "CLIENT_REGISTRATION_FAILED", 409)
 	return success_response(result, "Client organization registered successfully.", 201)
 
 
