@@ -59,53 +59,6 @@ class Config:
 	}
 
 
-class TestingConfig(Config):
-	TESTING = True
-	SQLALCHEMY_DATABASE_URI = os.getenv("TEST_DATABASE_URL", "sqlite:///:memory:")
-	JWT_ACCESS_TOKEN_EXPIRES = timedelta(minutes=15)
-	JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=1)
-	RATELIMIT_ENABLED = False
-	CORS_ORIGINS = "*"
-
-
-class ProductionConfig(Config):
-	DEBUG = False
-
-	@classmethod
-	def validate(cls):
-		missing = [
-			name
-			for name in ("SECRET_KEY", "JWT_SECRET_KEY")
-			if not os.getenv(name)
-		]
-		if missing:
-			raise RuntimeError(
-				f"Missing required production settings: {', '.join(missing)}"
-			)
-		if not cls.SQLALCHEMY_DATABASE_URI.startswith("mysql+pymysql://"):
-			raise RuntimeError("Production DATABASE_URL must use MySQL via PyMySQL.")
-		database_name = unquote(urlsplit(cls.SQLALCHEMY_DATABASE_URI).path.lstrip("/")).split("/")[-1]
-		if database_name != "pg_auth_service":
-			raise RuntimeError("AuthService DATABASE_URL must target pg_auth_service.")
-		if cls.RATELIMIT_STORAGE_URI.startswith("memory://"):
-			raise RuntimeError("Production rate limiting requires shared storage.")
-		if not cls.CORS_ORIGINS or cls.CORS_ORIGINS == "*" or "*" in cls.CORS_ORIGINS:
-			raise RuntimeError("Production CORS must list explicit allowed origins.")
-		graph_settings = (
-			"GRAPH_TENANT_ID",
-			"GRAPH_CLIENT_ID",
-			"GRAPH_CLIENT_SECRET",
-			"GRAPH_SENDER_EMAIL",
-		)
-		missing_graph = [name for name in graph_settings if not os.getenv(name)]
-		if missing_graph:
-			raise RuntimeError(
-				f"Missing required production Graph settings: {', '.join(missing_graph)}"
-			)
-
-
 CONFIG_BY_NAME = {
 	"development": Config,
-	"testing": TestingConfig,
-	"production": ProductionConfig,
 }
