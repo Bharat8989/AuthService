@@ -40,11 +40,11 @@ service with `venv\Scripts\python.exe run.py`; run focused tests with
   existing suspended/inactive login check. A trusted Client Service
   provisioning/synchronization integration is not implemented yet. Client and
   admin login fails closed with `503` when the projection is missing.
-- `POST /api/auth/register-client` currently returns `503` with a
-  Client-Service-integration-required error and creates no User or Client row.
-  Client Service must own organization creation and coordinate Auth identity
-  creation with compensation/retry; the former single-database transaction
-  cannot span the services.
+- `POST /api/auth/register-client` creates an Auth user for the client owner,
+  issues an OTP/email-verification flow, and leaves `client_id` unset until the
+  separate Client Service provisioner acknowledges the organization. AuthService
+  continues to guard against orphaned identity state by validating the owner
+  record and verification step before login.
 - `GET /api/auth/me` returns identity fields only. Client-specific profile data
   must be fetched/aggregated by a future API gateway or Client Service.
 - Client/admin provisioning, Client owner profile synchronization, and
