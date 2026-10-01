@@ -19,15 +19,6 @@ def create_app(config_name: str | None = None, test_config: dict | None = None) 
 	if test_config:
 		app.config.update(test_config)
 
-	if config_name == "production":
-		config_class.validate()
-	elif config_name != "testing":
-		database_uri = app.config["SQLALCHEMY_DATABASE_URI"]
-		if database_uri.startswith("mysql+pymysql://"):
-			database_name = unquote(urlsplit(database_uri).path.lstrip("/")).split("/")[-1]
-			if database_name != "pg_auth_service":
-				raise RuntimeError("AuthService DATABASE_URL must target pg_auth_service.")
-
 	logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO").upper())
 	app.logger.setLevel(os.getenv("LOG_LEVEL", "INFO").upper())
 
@@ -44,11 +35,14 @@ def create_app(config_name: str | None = None, test_config: dict | None = None) 
 	)
 
 	from app import models  # noqa: F401
-	from app.controllers.auth_controller import auth_bp, users_bp
+	from app.controllers.auth_account_routes import auth_bp
+	from app.controllers.auth_profile_routes import users_bp
+	from app.controllers.admin_user_routes import admin_user_bp
 	from app.commands.sync_superadmin import sync_superadmin_cli
 
 	app.register_blueprint(auth_bp)
 	app.register_blueprint(users_bp)
+	app.register_blueprint(admin_user_bp)
 	app.cli.add_command(sync_superadmin_cli)
 
 	_register_jwt_callbacks()

@@ -10,7 +10,7 @@ from app.extensions import db
 from app.models.password_reset import PasswordResetHistory
 from app.models.token_blocklist import TokenBlocklist
 from app.models.user import User
-from app.services.auth_service import AuthService
+from app.services.auth_account_service import AccountAuthService
 from app.services.graph_email_service import GraphEmailService
 
 
@@ -402,7 +402,7 @@ def test_sync_superadmin_is_explicit_and_hashes_password(app, monkeypatch):
     monkeypatch.setenv("SUPERADMIN_EMAIL", "root@example.test")
     monkeypatch.setenv("SUPERADMIN_PASSWORD", "SuperSecret123")
     with app.app_context():
-        success, _message = AuthService.sync_superadmin_logic()
+        success, _message = AccountAuthService.sync_superadmin_logic()
         assert success
         user = User.query.filter_by(role=User.ROLE_SUPERADMIN).one()
         assert user.email == "root@example.test"

@@ -53,3 +53,17 @@ service with `venv\Scripts\python.exe run.py`; run focused tests with
 - Token blocklist and `token_version` checks are local to AuthService. A future
   gateway/consumer verification contract is required for immediate revocation
   across services; no distributed token architecture is implemented here.
+## SuperAdmin Identity API
+
+AuthService also exposes these JWT-protected routes for callers with the
+`superadmin` role:
+
+- `GET /api/internal/superadmin/users`
+- `GET /api/internal/superadmin/users/<id>`
+- `PATCH /api/internal/superadmin/users/<id>`
+- `PATCH /api/internal/superadmin/users/<id>/status`
+- `PATCH /api/internal/superadmin/users/<id>/block`
+- `PATCH /api/internal/superadmin/users/<id>/unblock`
+
+SuperAdminService uses these routes for identity changes. User deletion remains
+owned by the service that can verify business-record dependencies.
